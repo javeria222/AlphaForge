@@ -57,4 +57,4 @@ Create `.env` files in both `backend/` and `frontend/` directories with required
 
 ## Contributing
 
-See individual README files in `backend/` and `frontend/` for detailed setup and contribution guidelines.
+See the detailed documents in `docs/` for contributing.
