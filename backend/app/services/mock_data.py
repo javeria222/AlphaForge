@@ -1,5 +1,7 @@
 # backend/app/services/mock_data.py
 
+from app.services.embeddings import EmbeddingsService
+
 mock_segments = [
     {
         "segment_id": "m1_s01",
@@ -79,3 +81,17 @@ mock_segments = [
         "segment_text": "After testing, we're going back to PostgreSQL — it fits our query patterns better."
     },
 ]
+
+_embeddings_computed = False
+
+
+def get_mock_segments():
+    """Returns mock_segments with 'embedding' populated on each dict.
+    Computes lazily on first call; subsequent calls reuse the cached result."""
+    global _embeddings_computed
+    if not _embeddings_computed:
+        embeddings_service = EmbeddingsService()
+        for seg in mock_segments:
+            seg["embedding"] = embeddings_service.encode(seg["segment_text"])
+        _embeddings_computed = True
+    return mock_segments
