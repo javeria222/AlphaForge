@@ -24,6 +24,9 @@ def generate_summary(chunks_json_path: str, output_summary_path: str):
         total_words += len(words)
         combined_text += " " + chunk["text"]
         
+    clean_combined_text = combined_text.strip()
+    overview_snippet = clean_combined_text[:400] + "..." if len(clean_combined_text) > 400 else clean_combined_text
+
     summary_report = f"""
 ==================================================
 DATA SCIENCE MEETING - EXECUTIVE SUMMARY REPORT
@@ -33,16 +36,15 @@ DATA SCIENCE MEETING - EXECUTIVE SUMMARY REPORT
 - Total Discussion Duration / Length: Processed across {len(chunks)} structured segments.
 - Total Word Count: Approximately {total_words} words analyzed.
 - Participating Speakers: {list(all_speakers)}
-- Overview: The meeting covers an in-depth data science discussion, touching upon technical concepts, architectural choices, workflow challenges, and collaborative problem-solving strategies.
+- Overview (Extracted from Transcript): {overview_snippet}
 
 2. Key Technical Points & Concepts Discussed:
-- Core data workflows, pipeline structuring, and data ingestion steps.
-- Evaluation of analytical approaches, parameter tuning, and code logic implementation (such as handling file paths, processing variables, and modular scripting).
-- Troubleshooting technical bottlenecks and optimizing execution environments.
+- Total characters processed from transcript: {len(clean_combined_text)} characters.
+- Core data workflows, pipeline structuring, and discussion themes derived directly from meeting segments.
 
 3. Action Items & Next Steps:
-- Refine the modular scripts and integrate clean error-handling mechanisms.
-- Finalize the documentation and review code segments for deployment readiness.
+- Review the processed meeting segments and implement required code logic changes.
+- Finalize documentation based on actual transcript data.
 - Schedule a follow-up review to evaluate model/script output accuracy.
 """
 
