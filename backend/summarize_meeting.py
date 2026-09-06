@@ -16,7 +16,7 @@ def generate_summary(chunks_json_path: str, output_summary_path: str):
     all_speakers = set()
     total_words = 0
     combined_text = ""
-    extracted_sentences = []
+    all_sentences = []
     
     for chunk in chunks:
         for spk in chunk.get("speakers", []):
@@ -26,24 +26,35 @@ def generate_summary(chunks_json_path: str, output_summary_path: str):
         total_words += len(words)
         combined_text += " " + text
         
-        for sentence in text.split('.'):
+        for sentence in text.replace('!', '.').replace('?', '.').split('.'):
             clean_s = sentence.strip()
-            if len(clean_s) > 15:  # filter out too short fragments
-                extracted_sentences.append(clean_s)
+
+            if len(clean_s.split()) > 4:
+                all_sentences.append(clean_s)
                 
     clean_combined_text = combined_text.strip()
-    
     overview_snippet = clean_combined_text[:400] + "..." if len(clean_combined_text) > 400 else clean_combined_text
     
-    key_points_list = extracted_sentences[:3] if len(extracted_sentences) >= 3 else extracted_sentences
-    key_points = "\n".join([f"- {kp}." for kp in key_points_list]) if key_points_list else "- Discussed core project requirements and technical implementation details."
+    substantive_sentences = [
+        s for s in all_sentences 
+        if not s.lower().startswith(('yeah', 'okay', 'so,', 'um', 'uh', 'right'))
+    ]
     
-    action_candidates = [s for s in extracted_sentences if any(keyword in s.lower() for keyword in ['need', 'fix', 'update', 'check', 'do', 'will', 'should', 'push', 'run'])]
-    if not action_candidates and len(extracted_sentences) > 3:
-        action_candidates = extracted_sentences[3:5]
-        
-    action_items_list = action_candidates[:2] if action_candidates else ["Review discussed code logic and file paths.", "Proceed with implementation and verify results."]
-    action_items = "\n".join([f"- {ai}." for ai in action_items_list])
+    sorted_by_length = sorted(substantive_sentences, key=len, reverse=True)
+    key_points_list = sorted_by_length[:3] if len(sorted_by_length) >= 3 else all_sentences[:3]
+    key_points = "\n".join([f"- {kp}." for kp in key_points_list]) if key_points_list else "- No substantial key points found in the transcript."
+    
+    action_keywords = ['need to', 'have to', 'must', 'action', 'todo', 'task', 'going to', 'will implement', 'please fix', 'make sure']
+    action_candidates = []
+    
+    for s in all_sentences:
+        s_lower = s.lower()
+        if any(kw in s_lower for kw in action_keywords):
+            if s not in action_candidates:
+                action_candidates.append(s)
+                
+    action_items_list = action_candidates[:3] if action_candidates else []
+    action_items = "\n".join([f"- {ai}." for ai in action_items_list]) if action_items_list else "- No explicit action items recorded in this segment."
 
     summary_report = f"""
 ==================================================
