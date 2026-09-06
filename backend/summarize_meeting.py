@@ -16,24 +16,34 @@ def generate_summary(chunks_json_path: str, output_summary_path: str):
     all_speakers = set()
     total_words = 0
     combined_text = ""
+    extracted_sentences = []
     
     for chunk in chunks:
         for spk in chunk.get("speakers", []):
             all_speakers.add(spk)
-        words = chunk["text"].split()
+        text = chunk["text"].strip()
+        words = text.split()
         total_words += len(words)
-        combined_text += " " + chunk["text"]
+        combined_text += " " + text
         
+        for sentence in text.split('.'):
+            clean_s = sentence.strip()
+            if len(clean_s) > 15:  # filter out too short fragments
+                extracted_sentences.append(clean_s)
+                
     clean_combined_text = combined_text.strip()
     
-    # Overview, Key Points, aur Action Items ko transcript data se dynamically derive kar rahe hain
     overview_snippet = clean_combined_text[:400] + "..." if len(clean_combined_text) > 400 else clean_combined_text
     
-    # Dynamic Key Points generation based on transcript content length and chunks
-    key_points = f"- Processed {len(chunks)} distinct dialogue segments containing {total_words} total words.\n- Main discussion themes extracted directly from speaker interactions involving: {list(all_speakers)}.\n- Key focus areas identified from transcript data flow and technical terminology used across segments."
+    key_points_list = extracted_sentences[:3] if len(extracted_sentences) >= 3 else extracted_sentences
+    key_points = "\n".join([f"- {kp}." for kp in key_points_list]) if key_points_list else "- Discussed core project requirements and technical implementation details."
     
-    # Dynamic Action Items based on transcript analysis
-    action_items = f"- Review the {len(chunks)} processed meeting chunks for implementation details.\n- Address specific code logic, file paths, or pipeline requirements discussed in the transcript.\n- Coordinate follow-up tasks among participating speakers: {list(all_speakers)}."
+    action_candidates = [s for s in extracted_sentences if any(keyword in s.lower() for keyword in ['need', 'fix', 'update', 'check', 'do', 'will', 'should', 'push', 'run'])]
+    if not action_candidates and len(extracted_sentences) > 3:
+        action_candidates = extracted_sentences[3:5]
+        
+    action_items_list = action_candidates[:2] if action_candidates else ["Review discussed code logic and file paths.", "Proceed with implementation and verify results."]
+    action_items = "\n".join([f"- {ai}." for ai in action_items_list])
 
     summary_report = f"""
 ==================================================
@@ -41,8 +51,7 @@ DATA SCIENCE MEETING - EXECUTIVE SUMMARY REPORT
 ==================================================
 
 1. Executive Summary:
-- Total Discussion Duration / Length: Processed across {len(chunks)} structured segments.
-- Total Word Count: Approximately {total_words} words analyzed.
+- Total Discussion Length: {total_words} words across {len(chunks)} segments.
 - Participating Speakers: {list(all_speakers)}
 - Overview: {overview_snippet}
 
