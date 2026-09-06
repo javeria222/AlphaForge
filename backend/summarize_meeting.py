@@ -26,30 +26,63 @@ def generate_summary(chunks_json_path: str, output_summary_path: str):
         total_words += len(words)
         combined_text += " " + text
         
+        # Split text into sentences cleanly
         for sentence in text.replace('!', '.').replace('?', '.').split('.'):
             clean_s = sentence.strip()
-
-            if len(clean_s.split()) > 4:
+            if len(clean_s.split()) > 3:  # ignore micro-fragments
                 all_sentences.append(clean_s)
                 
     clean_combined_text = combined_text.strip()
     overview_snippet = clean_combined_text[:400] + "..." if len(clean_combined_text) > 400 else clean_combined_text
     
-    substantive_sentences = [
-        s for s in all_sentences 
-        if not s.lower().startswith(('yeah', 'okay', 'so,', 'um', 'uh', 'right'))
-    ]
-    
-    sorted_by_length = sorted(substantive_sentences, key=len, reverse=True)
-    key_points_list = sorted_by_length[:3] if len(sorted_by_length) >= 3 else all_sentences[:3]
-    key_points = "\n".join([f"- {kp}." for kp in key_points_list]) if key_points_list else "- No substantial key points found in the transcript."
-    
-    action_keywords = ['need to', 'have to', 'must', 'action', 'todo', 'task', 'going to', 'will implement', 'please fix', 'make sure']
-    action_candidates = []
+    # 1. Smarter Key Point Selection (Scoring based on substance, nouns, and core discussion cues)
+    scored_sentences = []
+    filler_starters = ('yeah', 'okay', 'so,', 'um', 'uh', 'right', 'i mean', 'well')
     
     for s in all_sentences:
         s_lower = s.lower()
-        if any(kw in s_lower for kw in action_keywords):
+        if s_lower.startswith(filler_starters):
+            continue
+            
+        score = 0
+        word_count = len(s.split())
+        
+        # Reward optimal sentence length (not too short, not a giant run-on paragraph)
+        if 6 <= word_count <= 25:
+            score += 2
+            
+        # Reward sentences containing summary or focal indicators
+        focal_cues = ['important', 'critical', 'main', 'conclusion', 'decision', 'result', 'issue', 'problem', 'agree', 'focus']
+        if any(cue in s_lower for cue in focal_cues):
+            score += 3
+            
+        scored_sentences.append((score, s))
+        
+    # Sort by calculated importance score rather than raw length
+    scored_sentences.sort(key=lambda x: x[0], reverse=True)
+    top_key_points = [item[1] for item in scored_sentences[:3]]
+    
+    key_points = "\n".join([f"- {kp}." for kp in top_key_points]) if top_key_points else "- No substantial key points found in the transcript."
+    
+    # 2. Ultra-Strict Action Item Extraction (Targeting only true assignments)
+    strict_action_triggers = [
+        'action item', 'todo', 'task', 'assigned to', 
+        'responsible for', 'take care of', 'look into', 
+        'please make sure', 'let us ensure', 'next step'
+    ]
+    
+    negation_words = ["don't", 'do not', "doesn't", 'not', 'no ', 'never']
+    noise_words = ['thanks', 'thank you', 'person', 'tangerine']
+    
+    action_candidates = []
+    for s in all_sentences:
+        s_lower = s.lower()
+        
+        has_trigger = any(trigger in s_lower for trigger in strict_action_triggers)
+        has_negation = any(neg in s_lower for neg in negation_words)
+        has_noise = any(noise in s_lower for noise in noise_words)
+        
+        if has_trigger and not has_negation and not has_noise:
             if s not in action_candidates:
                 action_candidates.append(s)
                 
