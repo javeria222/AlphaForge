@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends
+from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.schemas.retrieval import RetrievalQuery, RetrievalOutput
+from app.schemas.retrieval import RetrievalQuery, RetrievalOutput, RetrievalResult
 from app.schemas.answer import AnswerQuery, FinalAnswerOutput
 from app.core.security import verify_api_key, ErrorResponse
+from app.services.embeddings import embeddings_service
+from app.services.mock_data import get_mock_segments
 
 router = APIRouter(tags=["search"])
 
@@ -17,12 +20,35 @@ router = APIRouter(tags=["search"])
 async def search_segments(query: RetrievalQuery, db: Session = Depends(get_db)):
     """
     Search across all meetings for relevant segments via semantic similarity.
-    Body: { "query": string, "top_k"?: int (default 5) }
-    Returns a Retrieval Output.
     Owner: Person C (Contract §3)
     """
-    # TODO(PersonC): Implement retrieval/similarity search
-    pass
+    segments = get_mock_segments()
+    query_vec = embeddings_service.encode(query.query)
+
+    scored = []
+    for seg in segments:
+        sim = cosine_similarity([query_vec], [seg["embedding"]])[0][0]
+        scored.append((seg, round(float(sim), 2)))
+
+    scored.sort(key=lambda pair: pair[1], reverse=True)
+    top_results = scored[: query.top_k]
+
+    results = [
+        RetrievalResult(
+            segment_id=seg["segment_id"],
+            meeting_id=seg["meeting_id"],
+            score=score,
+            start_time=seg["start_time"],
+            end_time=seg["end_time"],
+            topic=seg["topic"],
+            summary=seg["summary"],
+            decision_text=seg["decision_text"],
+            segment_text=seg["segment_text"],
+        )
+        for seg, score in top_results
+    ]
+
+    return RetrievalOutput(query=query.query, top_k=query.top_k, results=results)
 
 
 @router.post(
