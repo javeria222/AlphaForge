@@ -6,3 +6,6 @@ class EmbeddingsService:
 
     def encode(self, text: str):
         return self.model.encode(text)
+
+
+embeddings_service = EmbeddingsService()
