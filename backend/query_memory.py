@@ -1,42 +1,56 @@
 import json
 import os
-import sys
 
-def search_meeting_memory(query: str, chunks_json_path: str = "data/chunks/meeting_1.json"):
-    print(f"Loading chunks from {chunks_json_path}...")
-    
-    if not os.path.exists(chunks_json_path):
-        print(f"Error: Chunks file not found at {chunks_json_path}")
-        return
+def load_chunks(chunks_dir="data/chunks"):
+    """
+    Loads all structured meeting segments from the chunks directory.
+    """
+    all_segments = []
+    if not os.path.exists(chunks_dir):
+        return all_segments
         
-    with open(chunks_json_path, "r", encoding="utf-8") as f:
-        chunks = json.load(f)
-        
-    print(f"\nSearching across {len(chunks)} meeting chunks for: '{query}'\n" + "="*50)
-    
-    matches = []
+    for filename in os.listdir(chunks_dir):
+        if filename.endswith(".json"):
+            file_path = os.path.join(chunks_dir, filename)
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                all_segments.extend(data)
+    return all_segments
+
+def semantic_search(query, top_k=2):
+    """
+    Simulates semantic search over structured meeting segments.
+    (Can be replaced with real vector embeddings like OpenAI/SentenceTransformers later).
+    """
+    segments = load_chunks()
+    if not segments:
+        print("No chunks found. Run chunk_transcript.py first.")
+        return []
+
+    results = []
     query_lower = query.lower()
     
-    for idx, chunk in enumerate(chunks):
-        if query_lower in chunk["text"].lower():
-            matches.append((idx + 1, chunk))
+    for seg in segments:
+
+        score = 0
+        if query_lower in seg.get("topic", "").lower():
+            score += 2
+        if query_lower in seg.get("summary", "").lower():
+            score += 1
             
-    if not matches:
-        print("No direct keyword matches found in the chunks. Try a broader search term.")
-        return
-        
-    print(f"Found {len(matches)} relevant segment(s):\n")
-    for chunk_num, chunk in matches:
-        speakers_str = ", ".join(chunk.get("speakers", []))
-        print(f"[Chunk #{chunk_num}] (Speakers: {speakers_str})")
-        print(f"Snippet: {chunk['text'].strip()}")
-        print("-" * 50)
+        if score > 0:
+            results.append((score, seg))
+            
+    results.sort(key=lambda x: x[0], reverse=True)
+    return [res[1] for res in results[:top_k]]
 
 if __name__ == "__main__":
-
-    if len(sys.argv) > 1:
-        search_query = " ".join(sys.argv[1:])
-    else:
-        search_query = "data" 
-        
-    search_meeting_memory(search_query)
+    query = "semantic architecture"
+    print(f"Searching memory for: '{query}'")
+    matches = semantic_search(query)
+    
+    for match in matches:
+        print(f"\n[Found Segment: {match.get('segment_id')}]")
+        print(f"Topic: {match.get('topic')}")
+        print(f"Summary: {match.get('summary')}")
+        print(f"Decision: {match.get('decision_text')}")

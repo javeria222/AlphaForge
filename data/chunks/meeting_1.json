@@ -1,0 +1,24 @@
+[
+    {
+        "segment_id": "seg_001",
+        "topic": "Project Overview and Roadmap",
+        "summary": "Discussion on moving from heuristic keyword matching to a semantic architecture.",
+        "decision_text": "Agreed to transition towards LLM-driven extraction.",
+        "speakers": [
+            "Speaker A",
+            "Speaker B"
+        ],
+        "raw_text": "Sample transcript text for segment 1..."
+    },
+    {
+        "segment_id": "seg_002",
+        "topic": "Codebase Alignment and Mocks",
+        "summary": "Reviewing legacy scripts and matching them with the new data contract.",
+        "decision_text": "Action item created to update helper scripts and support semantic search.",
+        "speakers": [
+            "Speaker C",
+            "Speaker D"
+        ],
+        "raw_text": "Sample transcript text for segment 2..."
+    }
+]
