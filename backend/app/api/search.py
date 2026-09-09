@@ -28,6 +28,8 @@ async def search_segments(query: RetrievalQuery, db: Session = Depends(get_db)):
     scored = []
     for seg in segments:
         sim = cosine_similarity([query_vec], [seg["embedding"]])[0][0]
+        if seg["decision_text"] is not None:
+            sim = min(sim + 0.1, 1.0)
         scored.append((seg, round(float(sim), 2)))
 
     scored.sort(key=lambda pair: pair[1], reverse=True)
