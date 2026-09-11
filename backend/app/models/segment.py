@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, ForeignKey, Text, ARRAY, Float
 from app.database import Base
 
 
@@ -19,3 +19,4 @@ class Segment(Base):
     summary = Column(Text, nullable=False)
     decision_text = Column(Text, nullable=True)  # null if not a decision
     segment_text = Column(Text, nullable=False)
+    embedding = Column(ARRAY(Float), nullable=True)

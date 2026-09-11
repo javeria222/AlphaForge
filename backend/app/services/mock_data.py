@@ -1,6 +1,6 @@
 # backend/app/services/mock_data.py
 
-from app.services.embeddings import EmbeddingsService
+from app.services.embeddings import embeddings_service
 
 mock_segments = [
     {
@@ -84,14 +84,10 @@ mock_segments = [
 
 _embeddings_computed = False
 
-
 def get_mock_segments():
-    """Returns mock_segments with 'embedding' populated on each dict.
-    Computes lazily on first call; subsequent calls reuse the cached result."""
     global _embeddings_computed
     if not _embeddings_computed:
-        embeddings_service = EmbeddingsService()
-        for seg in mock_segments:
+        for seg in mock_segments:                       # deleted: embeddings_service = EmbeddingsService()
             seg["embedding"] = embeddings_service.encode(seg["segment_text"])
         _embeddings_computed = True
     return mock_segments
