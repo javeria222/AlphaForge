@@ -57,3 +57,4 @@ build/
 # Logs
 logs/
 *.log
+.neon
