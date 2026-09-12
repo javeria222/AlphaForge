@@ -11,3 +11,4 @@ openai==1.57.0
 sentence-transformers==3.3.1
 numpy
 scikit-learn
+pytest
