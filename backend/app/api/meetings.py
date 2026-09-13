@@ -90,6 +90,12 @@ async def get_segments(meeting_id: str, db: Session = Depends(get_db)):
     Returns { "meeting_id": ..., "segments": [...] }
     Owner: Person B/C (Contract §3)
     """
-    # TODO(PersonB): Implement segment retrieval
-    pass
+    meeting = db.query(MeetingModel).filter(MeetingModel.meeting_id == meeting_id).first()
+    if meeting is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": True, "code": "NOT_FOUND", "message": f"Meeting '{meeting_id}' not found"},
+        )
 
+    segments = db.query(SegmentModel).filter(SegmentModel.meeting_id == meeting_id).all()
+    return SegmentListResponse(meeting_id=meeting_id, segments=segments)
