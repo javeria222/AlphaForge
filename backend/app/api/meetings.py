@@ -4,7 +4,7 @@ from app.database import get_db
 from app.schemas.meeting import Meeting, MeetingCreate, MeetingListResponse
 from app.schemas.segment import SegmentListResponse
 from app.schemas.transcript import TranscriptOutput
-from app.models.meeting import Meeting as MeetingModel
+from app.models.meeting import Meeting as MeetingModel, MeetingStatus
 from app.models.segment import Segment as SegmentModel
 from app.core.security import verify_api_key, ErrorResponse
 from pydantic import BaseModel
@@ -96,6 +96,15 @@ async def get_segments(meeting_id: str, db: Session = Depends(get_db)):
             status_code=404,
             detail={"error": True, "code": "NOT_FOUND", "message": f"Meeting '{meeting_id}' not found"},
         )
+    
+    if meeting.status != MeetingStatus.ready: 
+            raise HTTPException(
+                status_code=409, 
+                detail={"error": True, "code": "NOT_READY", "message": f"Meeting '{meeting_id}' is not ready yet (status: {meeting.status.value})"}
+            )
 
     segments = db.query(SegmentModel).filter(SegmentModel.meeting_id == meeting_id).all()
     return SegmentListResponse(meeting_id=meeting_id, segments=segments)
+
+
+
