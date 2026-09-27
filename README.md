@@ -23,7 +23,7 @@ cd backend
 pip install -r requirements.txt
 cp .env.example .env  # Configure with your settings
 alembic upgrade head
-uvicorn app.main:app --reload
+uvicorn main:app --reload
 ```
 
 API docs available at `http://localhost:8000/docs`
