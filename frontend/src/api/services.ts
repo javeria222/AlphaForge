@@ -135,3 +135,16 @@ export const voiceSearchMemory = async (question: string): Promise<FinalAnswerOu
   })
   return response.data
 }
+
+export const transcribeAudio = async (audio: Blob): Promise<string> => {
+  if (import.meta.env.VITE_USE_MOCK_API === 'true') {
+    throw new Error('Voice input needs the real API. Set VITE_USE_MOCK_API to false.')
+  }
+  const extension = audio.type.includes('mp4') ? 'mp4' : audio.type.includes('ogg') ? 'ogg' : 'webm'
+  const form = new FormData()
+  form.append('audio', audio, `question.${extension}`)
+  const response = await client.post<{ text: string }>('/voice/transcribe', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data.text
+}

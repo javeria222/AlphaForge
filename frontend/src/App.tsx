@@ -4,10 +4,16 @@ import VoiceInput from './components/VoiceInput'
 import DecisionTimeline from './components/DecisionTimeline'
 import AnswerCard from './components/AnswerCard'
 import AudioPlayer from './components/AudioPlayer'
-import { getAnswer, getMeeting } from './api/services'
+import { getAnswer, getMeeting, transcribeAudio } from './api/services'
 import { getUserFacingError } from './api/errors'
 import { mockMeetings } from './mocks'
 import type { Evidence, FinalAnswerOutput, Meeting } from './types'
+
+const speak = (text: string) => {
+  if (!('speechSynthesis' in window)) return
+  window.speechSynthesis.cancel()
+  window.speechSynthesis.speak(new SpeechSynthesisUtterance(text))
+}
 
 function App() {
   const [question, setQuestion] = useState('')
@@ -18,6 +24,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
 
   const handleAsk = async (nextQuestion: string) => {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
     setQuestion(nextQuestion)
     setIsLoading(true)
     setError(null)
@@ -30,6 +37,32 @@ function App() {
     } catch (requestError) {
       console.error(requestError)
       setAnswer(null)
+      setError(getUserFacingError(requestError))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleVoice = async (audio: Blob) => {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+    setIsLoading(true)
+    setError(null)
+    setAnswer(null)
+    setSelectedEvidence(null)
+    setSelectedMeeting(null)
+
+    try {
+      const text = (await transcribeAudio(audio)).trim()
+      if (!text) {
+        setError('I could not hear a question in that recording. Try again.')
+        return
+      }
+      setQuestion(text)
+      const nextAnswer = await getAnswer(text)
+      setAnswer(nextAnswer)
+      speak(nextAnswer.answer)
+    } catch (requestError) {
+      console.error(requestError)
       setError(getUserFacingError(requestError))
     } finally {
       setIsLoading(false)
@@ -77,13 +110,19 @@ function App() {
         </section>
 
         <div className="workspace-grid">
-          <VoiceInput question={question} isLoading={isLoading} onQuestionChange={setQuestion} onSubmit={handleAsk} />
+          <VoiceInput
+            question={question}
+            isLoading={isLoading}
+            onQuestionChange={setQuestion}
+            onSubmit={handleAsk}
+            onVoiceSubmit={handleVoice}
+          />
           <div className="results-column">
             {isLoading && <div className="loading-state" role="status"><span className="loading-line" /> Searching meeting memory...</div>}
             {error && <div className="error-state" role="alert"><strong>Could not complete the search.</strong><span>{error}</span></div>}
             <AnswerCard answer={answer} />
             <DecisionTimeline evidence={answer?.evidence || []} selectedEvidence={selectedEvidence} onSelect={handleEvidenceSelect} />
-            <AudioPlayer url={selectedMeeting?.audio_url || undefined} seekTo={selectedEvidence?.start_time} meetingTitle={selectedMeeting?.title || selectedEvidence?.meeting_title} />
+            <AudioPlayer url={selectedMeeting?.audio_url || undefined} seekTo={selectedEvidence?.start_time} meetingTitle={selectedMeeting?.audio_url ? selectedMeeting.title : selectedEvidence?.meeting_title} />
           </div>
         </div>
       </main>
