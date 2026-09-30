@@ -14,13 +14,16 @@ import type {
   FinalAnswerOutput,
   HealthResponse,
 } from '../types'
+import { getMockAnswer, mockMeetings } from '../mocks'
 
 /**
  * Health check endpoint (no auth required)
  * GET /health
  */
 export const checkHealth = async (): Promise<HealthResponse> => {
-  const response = await axios.get<HealthResponse>('http://localhost:8000/health')
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+  const healthUrl = apiUrl.endsWith('/api') ? `${apiUrl.slice(0, -4)}/health` : `${apiUrl}/health`
+  const response = await axios.get<HealthResponse>(healthUrl)
   return response.data
 }
 
@@ -54,12 +57,16 @@ export const listMeetings = async (): Promise<MeetingListResponse> => {
   return response.data
 }
 
+export const listMockMeetings = (): MeetingListResponse => ({
+  meetings: mockMeetings,
+})
+
 /**
  * Get a single meeting by ID
  * GET /meetings/{meeting_id}
  */
 export const getMeeting = async (meeting_id: string): Promise<Meeting> => {
-  const response = await client.get<Meeting>(`/meetings/${meeting_id}`)
+  const response = await client.get<Meeting>(`/meetings/${encodeURIComponent(meeting_id)}`)
   return response.data
 }
 
@@ -68,7 +75,7 @@ export const getMeeting = async (meeting_id: string): Promise<Meeting> => {
  * GET /meetings/{meeting_id}/transcript
  */
 export const getTranscript = async (meeting_id: string): Promise<TranscriptOutput> => {
-  const response = await client.get<TranscriptOutput>(`/meetings/${meeting_id}/transcript`)
+  const response = await client.get<TranscriptOutput>(`/meetings/${encodeURIComponent(meeting_id)}/transcript`)
   return response.data
 }
 
@@ -77,7 +84,7 @@ export const getTranscript = async (meeting_id: string): Promise<TranscriptOutpu
  * GET /meetings/{meeting_id}/segments
  */
 export const getSegments = async (meeting_id: string): Promise<SegmentListResponse> => {
-  const response = await client.get<SegmentListResponse>(`/meetings/${meeting_id}/segments`)
+  const response = await client.get<SegmentListResponse>(`/meetings/${encodeURIComponent(meeting_id)}/segments`)
   return response.data
 }
 
@@ -90,7 +97,7 @@ export const getSegments = async (meeting_id: string): Promise<SegmentListRespon
 export const searchMeetings = async (query: string, top_k?: number): Promise<RetrievalOutput> => {
   const response = await client.post<RetrievalOutput>('/search', {
     query,
-    top_k: top_k || 5,
+    top_k: top_k ?? 5,
   })
   return response.data
 }
@@ -99,11 +106,20 @@ export const searchMeetings = async (query: string, top_k?: number): Promise<Ret
  * Get answer to a question (retrieval + reasoning)
  * POST /answer
  */
-export const getAnswer = async (question: string): Promise<FinalAnswerOutput> => {
+export const getAnswerFromApi = async (question: string): Promise<FinalAnswerOutput> => {
   const response = await client.post<FinalAnswerOutput>('/answer', {
     question,
   })
   return response.data
+}
+
+export const getAnswer = async (question: string): Promise<FinalAnswerOutput> => {
+  if (import.meta.env.VITE_USE_MOCK_API === 'true') {
+    await new Promise((resolve) => window.setTimeout(resolve, 650))
+    return getMockAnswer(question)
+  }
+
+  return getAnswerFromApi(question)
 }
 
 // ===== Voice Agent API =====

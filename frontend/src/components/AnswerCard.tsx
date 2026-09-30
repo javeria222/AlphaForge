@@ -1,19 +1,30 @@
-import React from 'react'
+import type { FinalAnswerOutput } from '../types'
 
 interface AnswerCardProps {
-  question: string
-  answer: string
-  score?: number
+  answer: FinalAnswerOutput | null
 }
 
-export default function AnswerCard({ question, answer, score }: AnswerCardProps) {
+export default function AnswerCard({ answer }: AnswerCardProps) {
+  if (!answer) {
+    return (
+      <section className="answer-card empty-card" aria-labelledby="answer-heading">
+        <div className="section-kicker">Answer</div>
+        <h2 id="answer-heading">Your answer will appear here.</h2>
+        <p>Ask a question to search the meeting memory.</p>
+      </section>
+    )
+  }
+
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-4">
-      <h3 className="font-bold text-lg mb-2">{question}</h3>
-      <p className="text-gray-700 mb-2">{answer}</p>
-      {score !== undefined && (
-        <div className="text-sm text-gray-500">Confidence: {(score * 100).toFixed(1)}%</div>
-      )}
-    </div>
+    <section className="answer-card" aria-labelledby="answer-heading">
+      <div className="answer-topline">
+        <div className="section-kicker">Answer</div>
+        <span className={`status-badge ${answer.status}`}>{answer.status}</span>
+      </div>
+      <p className="asked-question">“{answer.question}”</p>
+      <h2 id="answer-heading">{answer.final_decision || 'Decision not resolved'}</h2>
+      <p className="answer-copy">{answer.answer}</p>
+      {answer.status === 'unresolved' && <p className="muted-note">No final decision is shown because the available evidence is inconclusive.</p>}
+    </section>
   )
 }
