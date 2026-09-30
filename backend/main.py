@@ -9,7 +9,7 @@ app = FastAPI(title="Conversation Memory Voice Agent API")
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://alpha-forge-omega.vercel.app/"],  # your actual Vite dev origin, not "*"
+    allow_origins=["http://localhost:5173"],  # your actual Vite dev origin, not "*"
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
