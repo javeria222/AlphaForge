@@ -1,14 +1,17 @@
-from fastapi import APIRouter, Depends
-from sklearn.metrics.pairwise import cosine_similarity
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
+from app.core.security import ErrorResponse, verify_api_key
 from app.database import get_db
-from app.schemas.retrieval import RetrievalQuery, RetrievalOutput
-from app.schemas.answer import AnswerQuery, FinalAnswerOutput
-from app.core.security import verify_api_key, ErrorResponse
-from app.services.embeddings import embeddings_service
-from app.services.mock_data import get_mock_segments
-from app.schemas.answer import AnswerQuery, FinalAnswerOutput, Evidence
+from app.models.meeting import Meeting as MeetingModel
+from app.modules.reasoning.timeline import chronological, narrate, parse_change, select_decisions
 from app.modules.retrieval.retriever import retrieve_segments
+from app.schemas.answer import AnswerQuery, Evidence, FinalAnswerOutput
+from app.schemas.retrieval import RetrievalOutput, RetrievalQuery
+
+ANSWER_TOP_K = 10
+
+
 router = APIRouter(tags=["search"])
 
 
@@ -31,121 +34,41 @@ async def search_segments(query: RetrievalQuery, db: Session = Depends(get_db)):
     "/answer",
     response_model=FinalAnswerOutput,
     dependencies=[Depends(verify_api_key)],
-    responses={
-        401: {"model": ErrorResponse},
-        422: {"model": ErrorResponse},
-        502: {"model": ErrorResponse},
-    },
+    responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse}, 502: {"model": ErrorResponse}},
 )
-async def answer_question(
-    query: AnswerQuery,
-    db: Session = Depends(get_db),
-):
-    """
-    Run retrieval + reasoning internally to answer a question.
-
-    Body: { "question": string }
-    Returns a Final Answer Output.
-
-    Owner: Person D (Contract §3)
-    """
-
-    from app.modules.reasoning.decision_reasoning import DecisionReasoner
-
-    # 1. Retrieve meeting segments
-    segments = get_mock_segments()
-
-    query_vec = embeddings_service.encode(query.question)
-
-    scored = []
-
-    for seg in segments:
-        sim = cosine_similarity(
-            [query_vec],
-            [seg["embedding"]],
-        )[0][0]
-
-        # Person C's +0.1 decision boost
-        if seg["decision_text"] is not None:
-            sim = min(sim + 0.1, 1.0)
-
-        scored.append((seg, float(sim)))
-
-    scored.sort(key=lambda pair: pair[1], reverse=True)
-
-    # Use the most relevant segments for reasoning
-    top_segments = [seg for seg, _ in scored[:5]]
-
-    # 2. Convert retrieved segments to reasoning input
-    reasoning_segments = [
-        {
-            "meeting_id": seg["meeting_id"],
-            "timestamp": str(seg["start_time"]),
-            "speaker": seg.get("speaker", "Unknown"),
-            "text": seg.get("decision_text") or seg["segment_text"],
-        }
-        for seg in top_segments
-    ]
-
-    # 3. Run Person D decision reasoning
-    result = DecisionReasoner().reason(reasoning_segments)
-
-    # 4. Convert evidence into the API response format
-    evidence = []
-
-    for reasoning_evidence in result.evidence:
-        matching_segment = next(
-            (
-                seg
-                for seg in top_segments
-                if str(seg["meeting_id"]) == reasoning_evidence.meeting_id
-                and (
-                    seg.get("decision_text") == reasoning_evidence.text
-                    or seg["segment_text"] == reasoning_evidence.text
-                )
-            ),
-            None,
+async def answer_question(query: AnswerQuery, db: Session = Depends(get_db)):
+    try:
+        results = retrieve_segments(query.question, ANSWER_TOP_K, db)
+        meetings = {m.meeting_id: m for m in db.query(MeetingModel).all()}
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": True, "code": "UPSTREAM_ERROR", "message": f"Retrieval failed: {exc}"},
         )
 
-        if matching_segment is None:
-            continue
+    dates = {mid: m.date for mid, m in meetings.items()}
+    decisions = chronological(select_decisions(results), dates)
 
-        start_time = int(matching_segment["start_time"])
-
-        minutes = start_time // 60
-        seconds = start_time % 60
-
-        evidence.append(
-            Evidence(
-                segment_id=matching_segment["segment_id"],
-                meeting_id=matching_segment["meeting_id"],
-                meeting_title=matching_segment.get(
-                    "meeting_title",
-                    "Unknown Meeting",
-                ),
-                start_time=start_time,
-                timestamp=f"{minutes:02d}:{seconds:02d}",
-                change=reasoning_evidence.text,
-            )
+    if not decisions:
+        return FinalAnswerOutput(
+            question=query.question, status="unresolved", final_decision=None,
+            answer="I could not find a clear decision about that in the meetings.", evidence=[],
         )
 
-    # Contract: evidence is chronological
-    evidence.sort(key=lambda item: item.start_time)
-
-    # 5. Build final speakable response
-    if result.status == "confirmed":
-        status = "resolved"
-        final_decision = result.decision
-        answer = f"The decision was: {result.decision}"
-    else:
-        status = "unresolved"
-        final_decision = None
-        answer = "I could not find a clear decision in the meeting."
+    evidence, steps = [], []
+    for seg in decisions:
+        meeting = meetings.get(seg.meeting_id)
+        title = meeting.title if meeting else "Unknown Meeting"
+        evidence.append(Evidence(
+            segment_id=seg.segment_id, meeting_id=seg.meeting_id, meeting_title=title,
+            start_time=seg.start_time,
+            timestamp=f"{seg.start_time // 60:02d}:{seg.start_time % 60:02d}",
+            change=seg.decision_text,
+        ))
+        steps.append({"title": title, "change": seg.decision_text})
 
     return FinalAnswerOutput(
-        question=query.question,
-        status=status,
-        final_decision=final_decision,
-        answer=answer,
-        evidence=evidence,
+        question=query.question, status="resolved",
+        final_decision=parse_change(decisions[-1].decision_text)[1],
+        answer=narrate(steps), evidence=evidence,
     )
