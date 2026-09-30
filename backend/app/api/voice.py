@@ -3,9 +3,26 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.answer import AnswerQuery, FinalAnswerOutput
 from app.core.security import verify_api_key, ErrorResponse
+from fastapi import File, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from app.services.assemblyai import TranscriptionError, transcribe_bytes
+from app.api.search import answer_question
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
+@router.post("/transcribe")
+async def transcribe(audio: UploadFile = File(...), _=Depends(verify_api_key)):
+    data = await audio.read()
+    if not data:
+        return {"text": ""}
+    try:
+        text = await run_in_threadpool(transcribe_bytes, data)
+    except TranscriptionError as e:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": True, "code": "UPSTREAM_ERROR", "message": str(e)},
+        )
+    return {"text": text}
 
 @router.post(
     "/tool/search_meeting_memory",
@@ -41,5 +58,5 @@ async def voice_search_meeting_memory(query: AnswerQuery, db: Session = Depends(
     """
     # TODO(PersonE): Implement voice agent tool orchestration
     # This should have the same business logic as /answer but with voice-specific handling
-    pass
+    return await answer_question(query, db)
 

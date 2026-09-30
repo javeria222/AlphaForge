@@ -1,9 +1,24 @@
-"""AssemblyAI service for audio transcription"""
+import os
+import tempfile
 
-class AssemblyAIService:
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-    
-    async def transcribe_audio(self, audio_file: str) -> str:
-        """Transcribe audio file using AssemblyAI API"""
-        pass
+import assemblyai as aai
+
+from app.config import settings
+
+
+class TranscriptionError(Exception):
+    pass
+
+
+def transcribe_bytes(data: bytes) -> str:
+    aai.settings.api_key = settings.ASSEMBLYAI_API_KEY
+    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
+        f.write(data)
+        path = f.name
+    try:
+        transcript = aai.Transcriber().transcribe(path, config=aai.TranscriptionConfig())
+    finally:
+        os.remove(path)
+    if transcript.status == aai.TranscriptStatus.error:
+        raise TranscriptionError(transcript.error or "Transcription failed")
+    return (transcript.text or "").strip()

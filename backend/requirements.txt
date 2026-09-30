@@ -12,3 +12,4 @@ sentence-transformers==3.3.1
 numpy
 scikit-learn
 pytest
+python-multipart

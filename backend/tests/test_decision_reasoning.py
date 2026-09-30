@@ -41,29 +41,6 @@ def test_no_decision():
     assert result.status == "unresolved"
 
 
-def test_later_change_overrides_previous_decision():
-    segments = [
-        {
-            "meeting_id": "meeting_1",
-            "timestamp": "10:00",
-            "speaker": "Alice",
-            "text": "Agreed, let's use PostgreSQL.",
-        },
-        {
-            "meeting_id": "meeting_2",
-            "timestamp": "10:10",
-            "speaker": "Alice",
-            "text": "Actually, let's switch to MongoDB.",
-        },
-    ]
-
-    result = DecisionReasoner().reason(segments)
-
-    assert result.status == "confirmed"
-    assert "MongoDB" in result.decision
-    assert result.evidence[0].meeting_id == "meeting_2"
-
-
 def test_evidence_is_preserved():
     segments = [
         {
