@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import meetings, search, voice
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Conversation Memory Voice Agent API")
 
@@ -26,3 +28,5 @@ app.include_router(meetings.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
 app.include_router(voice.router, prefix="/api")
 
+AUDIO_DIR = Path(__file__).parent / "data" / "audio"
+app.mount("/data/audio", StaticFiles(directory=AUDIO_DIR), name="audio")

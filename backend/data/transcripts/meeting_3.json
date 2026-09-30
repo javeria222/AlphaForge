@@ -1,0 +1,51 @@
+[
+    {
+        "meeting_id": "meeting_3",
+        "speaker": "Speaker A",
+        "start_time": 0,
+        "end_time": 2,
+        "text": "Before the demo, we need to lock the database choice."
+    },
+    {
+        "meeting_id": "meeting_3",
+        "speaker": "Speaker B",
+        "start_time": 2,
+        "end_time": 5,
+        "text": "I tested MongoDB, and—"
+    },
+    {
+        "meeting_id": "meeting_3",
+        "speaker": "Speaker A",
+        "start_time": 5,
+        "end_time": 10,
+        "text": "Also, our data is relational after all. Meetings own segments."
+    },
+    {
+        "meeting_id": "meeting_3",
+        "speaker": "Speaker B",
+        "start_time": 10,
+        "end_time": 15,
+        "text": "So I suggest we change back from MongoDB to PostgreSQL."
+    },
+    {
+        "meeting_id": "meeting_3",
+        "speaker": "Speaker A",
+        "start_time": 15,
+        "end_time": 20,
+        "text": "I agree. The final decision is PostgreSQL."
+    },
+    {
+        "meeting_id": "meeting_3",
+        "speaker": "Speaker B",
+        "start_time": 20,
+        "end_time": 24,
+        "text": "Confirmed. Deployment stays on Docker."
+    },
+    {
+        "meeting_id": "meeting_3",
+        "speaker": "Speaker A",
+        "start_time": 24,
+        "end_time": 28,
+        "text": "Perfect. Let's finish the demo preparation."
+    }
+]

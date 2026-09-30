@@ -43,6 +43,15 @@ class DecisionReasoner:
             "changed",
         ]
 
+    def _parse_timestamp(self, ts: Any) -> float:
+        """Helper to convert timestamps to floats for numeric sorting."""
+        if ts is None:
+            return 0.0
+        try:
+            return float(ts)
+        except (ValueError, TypeError):
+            return 0.0
+
     def reason(self, segments: List[Dict[str, Any]]) -> DecisionResult:
         """
         Determine the latest decision from meeting segments.
@@ -55,10 +64,10 @@ class DecisionReasoner:
                 evidence=[],
             )
 
-        # Chronological order
+        # Fix 1: Sort by numeric value instead of string
         ordered_segments = sorted(
             segments,
-            key=lambda segment: segment.get("timestamp", "")
+            key=lambda segment: self._parse_timestamp(segment.get("timestamp"))
         )
 
         decision = None
@@ -73,40 +82,29 @@ class DecisionReasoner:
 
             lower_text = text.lower()
 
-            # Explicit confirmation / decision
+            # Fix 2: Append evidence using .append() instead of overwriting
             if self._contains_keyword(
                 lower_text,
                 self.confirmation_keywords
             ):
                 decision = self._extract_decision(text)
                 status = "confirmed"
+                evidence.append(self._create_evidence(segment))
 
-                evidence = [
-                    self._create_evidence(segment)
-                ]
-
-            # Explicit change
             elif self._contains_keyword(
                 lower_text,
                 self.change_keywords
             ):
                 decision = self._extract_decision(text)
                 status = "confirmed"
+                evidence.append(self._create_evidence(segment))
 
-                evidence = [
-                    self._create_evidence(segment)
-                ]
-
-            # Explicit rejection
             elif self._contains_keyword(
                 lower_text,
                 self.rejection_keywords
             ):
                 status = "rejected"
-
-                evidence = [
-                    self._create_evidence(segment)
-                ]
+                evidence.append(self._create_evidence(segment))
 
         if decision is None:
             decision = "No clear decision found"

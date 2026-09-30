@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.meeting import Meeting, MeetingCreate, MeetingListResponse
@@ -50,14 +50,25 @@ async def list_meetings(db: Session = Depends(get_db)):
     dependencies=[Depends(verify_api_key)],
     responses={401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}}
 )
-async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
-    """
-    Get one meeting's metadata + status.
-    Returns a Meeting.
-    Owner: Person A/F (Contract §3)
-    """
-    # TODO(PersonA): Implement get meeting logic
-    pass
+async def get_meeting(meeting_id: str, request: Request, db: Session = Depends(get_db)):
+    meeting = db.query(MeetingModel).filter(MeetingModel.meeting_id == meeting_id).first()
+    if meeting is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": True, "code": "NOT_FOUND", "message": f"Meeting '{meeting_id}' not found"},
+        )
+
+    # The frontend plays audio_url directly, so a relative path must become an
+    # absolute URL pointing at this backend, not at the Vite dev server.
+    audio_url = meeting.audio_url
+    if audio_url.startswith("/"):
+        audio_url = str(request.base_url).rstrip("/") + audio_url
+
+    return Meeting(
+        meeting_id=meeting.meeting_id, title=meeting.title, date=meeting.date,
+        audio_url=audio_url, duration_seconds=meeting.duration_seconds,
+        status=meeting.status,
+    )
 
 
 @router.get(

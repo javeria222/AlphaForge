@@ -18,7 +18,7 @@ def transcribe_local_audio(audio_path: str, meeting_id: str, output_json_path: s
     
     transcriber = aai.Transcriber()
 
-    transcript = transcriber.transcribe(audio_path, config=config)
+    transcript = transcriber.transcribe(audio_path, config=config, poll_timeout=600)
     
     if transcript.status == aai.TranscriptStatus.error:
         print(f"Transcription failed for {meeting_id}: {transcript.error}")
@@ -30,8 +30,8 @@ def transcribe_local_audio(audio_path: str, meeting_id: str, output_json_path: s
         segment = {
             "meeting_id": meeting_id,
             "speaker": f"Speaker {utterance.speaker}", 
-            "start_time": utterance.start,           
-            "end_time": utterance.end,                
+            "start_time": utterance.start // 1000,
+            "end_time": max(utterance.start // 1000, utterance.end // 1000),            
             "text": utterance.text                    
         }
         formatted_segments.append(segment)
@@ -44,11 +44,11 @@ def transcribe_local_audio(audio_path: str, meeting_id: str, output_json_path: s
     print(f"Success! Transcript saved to: {output_json_path}")
 
 if __name__ == "__main__":
-
-    AUDIO_FILE = "data/audio/meeting_1.mp3"
-    OUTPUT_FILE = "data/transcripts/meeting_1.json"
-    
-    if os.path.exists(AUDIO_FILE):
-        transcribe_local_audio(AUDIO_FILE, meeting_id="meeting_1", output_json_path=OUTPUT_FILE)
-    else:
-        print(f"Error: Audio file not found at '{AUDIO_FILE}'. Please place your audio file in the 'backend/data/audio/' folder.")
+    for n in (1, 2, 3):
+        meeting_id = f"meeting_{n}"
+        audio_file = f"data/audio/{meeting_id}.mp3"
+        output_file = f"data/transcripts/{meeting_id}.json"
+        if os.path.exists(audio_file):
+            transcribe_local_audio(audio_file, meeting_id=meeting_id, output_json_path=output_file)
+        else:
+            print(f"Skipping {meeting_id}: '{audio_file}' not found. Run make_audio.py first.")
