@@ -1,32 +1,49 @@
-import React, { useState } from 'react'
+import type { Evidence } from '../types'
 
-interface Decision {
-  id: number
-  title: string
-  description: string
-  timestamp: string
+interface DecisionTimelineProps {
+  evidence: Evidence[]
+  selectedEvidence: Evidence | null
+  onSelect: (evidence: Evidence) => void
 }
 
-export default function DecisionTimeline() {
-  const [decisions, setDecisions] = useState<Decision[]>([])
+export default function DecisionTimeline({ evidence, selectedEvidence, onSelect }: DecisionTimelineProps) {
+  const sortedEvidence = [...evidence].sort((left, right) => left.start_time - right.start_time)
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-2xl font-bold mb-4">Decision Timeline</h2>
-      
-      {decisions.length === 0 ? (
-        <p className="text-gray-500">No decisions extracted yet.</p>
+    <section className="timeline-card" aria-labelledby="timeline-heading">
+      <div className="timeline-heading">
+        <div>
+          <div className="section-kicker">Evidence trail</div>
+          <h2 id="timeline-heading">Decision timeline</h2>
+        </div>
+        {sortedEvidence.length > 0 && <span className="evidence-count">{sortedEvidence.length} moments</span>}
+      </div>
+      {sortedEvidence.length === 0 ? (
+        <div className="timeline-empty">Evidence will appear after a question is answered.</div>
       ) : (
-        <div className="space-y-4">
-          {decisions.map((decision) => (
-            <div key={decision.id} className="border-l-4 border-blue-500 pl-4">
-              <h3 className="font-bold">{decision.title}</h3>
-              <p className="text-gray-700">{decision.description}</p>
-              <span className="text-sm text-gray-500">{decision.timestamp}</span>
-            </div>
-          ))}
+        <div className="timeline-list">
+          {sortedEvidence.map((item, index) => {
+            const isSelected = selectedEvidence?.segment_id === item.segment_id
+            return (
+              <button
+                type="button"
+                className={`timeline-item ${isSelected ? 'is-selected' : ''}`}
+                key={item.segment_id}
+                onClick={() => onSelect(item)}
+                aria-current={isSelected ? 'true' : undefined}
+              >
+                <span className="timeline-marker" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+                <span className="timeline-content">
+                  <span className="timeline-meta">{item.meeting_title} <strong>{item.timestamp}</strong></span>
+                  <span className="timeline-change">{item.change}</span>
+                  <span className="timeline-id">{item.meeting_id} / {item.segment_id}</span>
+                </span>
+                <span className="timeline-arrow" aria-hidden="true">&#8599;</span>
+              </button>
+            )
+          })}
         </div>
       )}
-    </div>
+    </section>
   )
 }
